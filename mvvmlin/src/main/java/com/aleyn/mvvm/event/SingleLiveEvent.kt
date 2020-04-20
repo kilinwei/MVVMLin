@@ -46,7 +46,7 @@ class SingleLiveEvent<T> : MutableLiveData<T>() {
         if (hasActiveObservers()) {
             Log.w(
                 "SingleLiveEvent",
-                "Multiple observers registered but only one will be notified of changes."
+                "Multiple observers register but only one will be notified of changes."
             )
         }
 

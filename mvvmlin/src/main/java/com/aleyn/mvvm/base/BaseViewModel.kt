@@ -7,14 +7,10 @@ import com.aleyn.mvvm.event.Message
 import com.aleyn.mvvm.event.SingleLiveEvent
 import com.aleyn.mvvm.network.ExceptionHandle
 import com.aleyn.mvvm.network.ResponseThrowable
-import com.blankj.utilcode.util.LogUtils
 import com.blankj.utilcode.util.Utils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flowOn
-import kotlin.system.measureTimeMillis
 
 /**
  *   @auther : Aleyn
@@ -28,8 +24,9 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
      * 所有网络请求都在 viewModelScope 域中启动，当页面销毁时会自动
      * 调用ViewModel的  #onCleared 方法取消所有协程
      */
-    fun launchUI(block: suspend CoroutineScope.() -> Unit) {
-        viewModelScope.launch { block() }
+    fun launchUI(block: suspend CoroutineScope.() -> Unit): Job {
+        val job = viewModelScope.launch { block() }
+        return job
     }
 
     /**
@@ -50,7 +47,9 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
      */
     fun launch(
         block: suspend CoroutineScope.() -> Unit,
-        error: suspend CoroutineScope.(ResponseThrowable) -> Unit = {},
+        error: suspend CoroutineScope.(ResponseThrowable) -> Unit = {
+            defUI.toastEvent.postValue("${it.code}:${it.errMsg}")
+        },
         complete: suspend CoroutineScope.() -> Unit = {},
         isShowDialog: Boolean = true
     ) {
@@ -62,8 +61,7 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
                 {
                     defUI.dismissDialog.call()
                     complete()
-                },
-                true
+                }
             )
         }
     }
@@ -79,25 +77,32 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
     fun <T> launchOnlyresult(
         block: suspend CoroutineScope.() -> BaseResult<T>,
         success: (T) -> Unit,
-        errorCall: (ResponseThrowable) -> Unit = {},
+        error: (ResponseThrowable) -> Unit = {
+            defUI.toastEvent.postValue("${it.code}:${it.errMsg}")
+        },
         complete: () -> Unit = {},
         isShowDialog: Boolean = true
     ) {
         if (isShowDialog) defUI.showDialog.call()
         launchUI {
             handleException(
-                { withContext(Dispatchers.IO) { block() } },
+                {
+                    withContext(Dispatchers.IO) {
+                        block()
+                    }
+                },
                 { res ->
-                    executeResponse(res) { success(it) }
+                    executeResponse(res) {
+                        success(it)
+                    }
                 },
                 {
-                    errorCall(it)
+                    error(it)
                 },
                 {
                     defUI.dismissDialog.call()
                     complete()
-                },
-                true
+                }
             )
         }
     }
@@ -110,8 +115,11 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
         success: suspend CoroutineScope.(T) -> Unit
     ) {
         coroutineScope {
-            if (response.isSuccess()) success(response.data)
-            else throw ResponseThrowable(response.errorCode, response.errorMsg)
+            if (response.success) {
+                success(response.data)
+            } else {
+                throw ResponseThrowable(response.code, response.message)
+            }
         }
     }
 
@@ -122,16 +130,13 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
         block: suspend CoroutineScope.() -> BaseResult<T>,
         success: suspend CoroutineScope.(BaseResult<T>) -> Unit,
         error: suspend CoroutineScope.(ResponseThrowable) -> Unit,
-        complete: suspend CoroutineScope.() -> Unit,
-        isHandlerError: Boolean = false
+        complete: suspend CoroutineScope.() -> Unit
     ) {
         coroutineScope {
             try {
                 success(block())
             } catch (e: Throwable) {
-                val err = ExceptionHandle.handleException(e)
-                if (!isHandlerError) defUI.toastEvent.postValue("${err.code}:${err.errMsg}")
-                else error(err)
+                error(ExceptionHandle.handleException(e))
             } finally {
                 complete()
             }
@@ -145,16 +150,13 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
     private suspend fun handleException(
         block: suspend CoroutineScope.() -> Unit,
         error: suspend CoroutineScope.(ResponseThrowable) -> Unit,
-        complete: suspend CoroutineScope.() -> Unit,
-        isHandlerError: Boolean
+        complete: suspend CoroutineScope.() -> Unit
     ) {
         coroutineScope {
             try {
                 block()
             } catch (e: Throwable) {
-                val err = ExceptionHandle.handleException(e)
-                if (!isHandlerError) defUI.toastEvent.postValue("${err.code}:${err.errMsg}")
-                else error(err)
+                error(ExceptionHandle.handleException(e))
             } finally {
                 complete()
             }

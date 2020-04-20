@@ -31,7 +31,7 @@ abstract class BaseFragment<VM : BaseViewModel, DB : ViewDataBinding> : Fragment
     //是否第一次加载
     private var isFirst: Boolean = true
 
-    private var dialog: MaterialDialog? = null
+    var dialog: MaterialDialog? = null
 
 
     override fun onCreateView(
@@ -50,9 +50,9 @@ abstract class BaseFragment<VM : BaseViewModel, DB : ViewDataBinding> : Fragment
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        onVisible()
         createViewModel()
         lifecycle.addObserver(viewModel)
+        mBinding?.setLifecycleOwner { lifecycle }
         //注册 UI事件
         registorDefUIChange()
         initView(savedInstanceState)
@@ -105,7 +105,7 @@ abstract class BaseFragment<VM : BaseViewModel, DB : ViewDataBinding> : Fragment
     /**
      * 打开等待框
      */
-    private fun showLoading() {
+     fun showLoading() {
         if (dialog == null) {
             dialog = context?.let {
                 MaterialDialog(it)
@@ -122,8 +122,8 @@ abstract class BaseFragment<VM : BaseViewModel, DB : ViewDataBinding> : Fragment
     /**
      * 关闭等待框
      */
-    private fun dismissLoading() {
-        dialog?.let { dialog?.dismiss() }
+     fun dismissLoading() {
+        dialog?.run { if (isShowing) dismiss() }
     }
 
 

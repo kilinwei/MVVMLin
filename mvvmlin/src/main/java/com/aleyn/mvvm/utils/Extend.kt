@@ -13,7 +13,7 @@ fun <T> Flow<BaseResult<T>>.applyTransform(): Flow<T> {
     return this
         .flowOn(Dispatchers.IO)
         .map {
-            if (it.isSuccess()) return@map it.data
-            else throw ResponseThrowable(it.errorCode, it.errorMsg)
+            if (it.success) return@map it.data
+            else throw ResponseThrowable(it.code, it.message)
         }
 }

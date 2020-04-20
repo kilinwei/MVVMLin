@@ -30,6 +30,7 @@ abstract class BaseActivity<VM : BaseViewModel, DB : ViewDataBinding> : AppCompa
         super.onCreate(savedInstanceState)
         initViewDataBinding()
         lifecycle.addObserver(viewModel)
+        mBinding?.setLifecycleOwner { lifecycle }
         //注册 UI事件
         registorDefUIChange()
         initView(savedInstanceState)
@@ -94,7 +95,7 @@ abstract class BaseActivity<VM : BaseViewModel, DB : ViewDataBinding> : AppCompa
      * 关闭等待框
      */
     private fun dismissLoading() {
-        if (dialog!!.isShowing) dialog?.dismiss()
+        dialog?.run { if (isShowing) dismiss() }
     }
 
 

@@ -17,5 +17,11 @@ class ResponseThrowable : Exception {
         this.code = code
         this.errMsg = msg
     }
+
+    override fun toString(): String {
+        return "ResponseThrowable(code=$code, errMsg='$errMsg')"
+    }
+
+
 }
 
