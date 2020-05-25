@@ -45,7 +45,7 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
      * @param complete  完成回调（无论成功失败都会调用）
      * @param isShowDialog 是否显示加载框
      */
-    fun launch(
+    fun launchGo(
         block: suspend CoroutineScope.() -> Unit,
         error: suspend CoroutineScope.(ResponseThrowable) -> Unit = {
             defUI.toastEvent.postValue("${it.code}:${it.errMsg}")
@@ -70,12 +70,12 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
      * 过滤请求结果，其他全抛异常
      * @param block 请求体
      * @param success 成功回调
-     * @param errorCall 失败回调
+     * @param error 失败回调
      * @param complete  完成回调（无论成功失败都会调用）
      * @param isShowDialog 是否显示加载框
      */
     fun <T> launchOnlyresult(
-        block: suspend CoroutineScope.() -> BaseResult<T>,
+        block: suspend CoroutineScope.() -> IBaseResponse<T>,
         success: (T) -> Unit,
         error: (ResponseThrowable) -> Unit = {
             defUI.toastEvent.postValue("${it.code}:${it.errMsg}")
@@ -111,15 +111,12 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
      * 请求结果过滤
      */
     private suspend fun <T> executeResponse(
-        response: BaseResult<T>,
+        response: IBaseResponse<T>,
         success: suspend CoroutineScope.(T) -> Unit
     ) {
         coroutineScope {
-            if (response.success) {
-                success(response.data)
-            } else {
-                throw ResponseThrowable(response.code, response.message)
-            }
+            if (response.isSuccess()) success(response.data())
+            else throw ResponseThrowable(response.code(), response.msg())
         }
     }
 
@@ -127,8 +124,8 @@ open class BaseViewModel : AndroidViewModel(Utils.getApp()), LifecycleObserver {
      * 异常统一处理
      */
     private suspend fun <T> handleException(
-        block: suspend CoroutineScope.() -> BaseResult<T>,
-        success: suspend CoroutineScope.(BaseResult<T>) -> Unit,
+        block: suspend CoroutineScope.() -> IBaseResponse<T>,
+        success: suspend CoroutineScope.(IBaseResponse<T>) -> Unit,
         error: suspend CoroutineScope.(ResponseThrowable) -> Unit,
         complete: suspend CoroutineScope.() -> Unit
     ) {

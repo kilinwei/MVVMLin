@@ -89,6 +89,7 @@ abstract class BaseActivity<VM : BaseViewModel, DB : ViewDataBinding> : AppCompa
                 .maxWidth(R.dimen.dialog_width)
         }
         dialog?.show()
+
     }
 
     /**
